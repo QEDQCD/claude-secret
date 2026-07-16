@@ -1,0 +1,12 @@
+# 密文和任何可能包含 token 的产物永远不要进仓库
+token.enc
+*.enc
+.env
+.env.*
+
+# 常见临时/编辑器文件
+*.log
+*.tmp
+*~
+*.swp
+.DS_Store
