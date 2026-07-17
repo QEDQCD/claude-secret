@@ -26,7 +26,7 @@ claude-secret/
 ## 一键安装
 
 ```bash
-git clone <this repo>        # 或者直接把这几个文件拷过来
+git clone git@github.com:QEDQCD/claude-secret.git   # 或 https://github.com/QEDQCD/claude-secret.git
 cd claude-secret
 bash install.sh
 ```
@@ -95,7 +95,21 @@ export CLAUDE_REAL_BIN=/your/path/to/claude
 - 明文里加了一个 `CLAUDE-SECRET-V1:` magic 前缀，解密后由 wrapper 校验——用来防止 AES-CBC 无认证时"密码错也能解出 16 字节乱码"被当成 token 直接注入。
 - 密文文件权限：`600`
 - 解密只在内存里发生，token 通过环境变量 `ANTHROPIC_AUTH_TOKEN` 传给子进程 `claude`，包装函数 `return` 前 `unset` 掉。
-- **注意**：这套方案能防"静态泄露"（`.bashrc`、备份、`history`、误 `cat`），但防不了 root/同 UID 恶意进程通过 `/proc/<pid>/environ` 读 `claude` 子进程的环境变量。真要严防内存态窃取，得配合 Linux capabilities / seccomp / 单独用户来跑。
+
+## 隐私与安全
+
+- 本仓库内的脚本是**通用模板**，不含任何 token / API key / base_url / 个人配置；请勿把你本机 `~/.claude/token.enc` 或 `~/.claude/settings.json` 提交到公开仓库。哪怕 `token.enc` 是密文，公开发布也意味着攻击者可以无限次离线爆破你的解锁密码——务必只留在本机。
+- 仓库根目录的 `.gitignore` 已经把 `token.enc / *.enc / .env*` 挡在外面；克隆本仓库到别处用作个人配置管理时，**别去改这条规则**。
+- 解锁密码请用**高熵**口令（长随机短语），不要复用你别处已经泄露过的密码。PBKDF2 200k 轮迭代能显著抬高离线爆破成本，但挡不住弱口令。
+- 密文文件权限固定 `600`；如果你把整个 `~/.claude/` 目录做云同步/备份，请确认同步端也只有你本人能读，并考虑对备份再做一层加密。
+- 本方案能防"**静态泄露**"（`.bashrc`、shell history、备份、误 `cat`、误提交），**防不了**：
+  - 同机器上 root 或同 UID 恶意进程通过 `/proc/<pid>/environ` 读 `claude` 子进程的环境变量；
+  - 键盘记录 / 屏幕录制 / 内存转储；
+  - 恶意 shell 别名或 `~/.bashrc` 里的钩子截获你输入的解锁密码。
+  真要严防内存态窃取，得配合 Linux capabilities / seccomp / 单独用户来跑，或者干脆把 token 放到硬件密钥 / OS keyring。
+- 每次运行 `claude` 都会当场问密码——这是设计目标（token 不进入 shell 环境，也不做时间缓存）。如果你把它改成"输一次记 N 分钟"的缓存方案（`gpg-agent` / `keyring` / tmpfs），请自己评估相应的窗口期风险。
+- 密码忘了没有找回途径。备份**明文 token** 而不是密文——密文丢了密码就等于永久锁死；token 本身只要还在 Anthropic 控制台可见/可重发就能重新加密。
+- 若你怀疑密文或密码已泄露：立即到 [Anthropic Console](https://console.anthropic.com/) 吊销当前 API key，重新签发后再跑一次 `encrypt-token.sh`。
 
 ## FAQ
 
